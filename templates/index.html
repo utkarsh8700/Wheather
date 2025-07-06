@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather App</title>
+    <!-- Three.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/weather-icons/2.0.10/css/weather-icons.min.css">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(120deg, #89f7fe 0%, #66a6ff 100%);
+            min-height: 100vh;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: background 1s cubic-bezier(0.4,0,0.2,1);
+        }
+        body.sunny {
+            background: linear-gradient(120deg, #fceabb 0%, #f8b500 100%);
+        }
+        body.hot {
+            background: linear-gradient(120deg, #ff512f 0%, #dd2476 100%);
+        }
+        body.cloudy {
+            background: linear-gradient(120deg, #d7d2cc 0%, #304352 100%);
+        }
+        body.rainy {
+            background: linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%);
+        }
+        body.foggy {
+            background: linear-gradient(120deg, #e0eafc 0%, #cfdef3 100%);
+        }
+        .weather-container {
+            background: rgba(255,255,255,0.85);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            padding: 48px 70px 40px 70px;
+            text-align: center;
+            min-width: 340px;
+            backdrop-filter: blur(6px) brightness(1.1);
+        }
+        .weather-container * {
+            text-shadow: 0 2px 8px #fff, 0 1px 2px #f8b50055;
+        }
+        .weather-icon {
+            font-size: 4.5rem;
+            color: #66a6ff;
+            margin-bottom: 12px;
+        }
+        .temp {
+            font-size: 3rem;
+            font-weight: bold;
+            color: #2d3a4b;
+        }
+        .desc {
+            font-size: 1.3rem;
+            color: #4a6073;
+            margin-bottom: 18px;
+        }
+        .city {
+            font-size: 1.1rem;
+            color: #2d3a4b;
+            margin-bottom: 24px;
+        }
+        .search-box {
+            margin-bottom: 18px;
+        }
+        .search-input {
+            padding: 10px 18px;
+            border-radius: 8px;
+            border: 1px solid #66a6ff;
+            font-size: 1rem;
+            outline: none;
+            margin-right: 8px;
+        }
+        .search-btn {
+            padding: 10px 22px;
+            background: #66a6ff;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .search-btn:hover {
+            background: #89f7fe;
+            color: #2d3a4b;
+        }
+        .aqi {
+            font-size: 1.1rem;
+            color: #388e3c;
+            margin-bottom: 18px;
+            font-weight: bold;
+            transition: color 0.5s;
+        }
+        .aqi.good { color: #388e3c; }
+        .aqi.moderate { color: #fbc02d; }
+        .aqi.unhealthy { color: #d32f2f; }
+        .weather-bg-anim {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 0;
+            transition: opacity 1s;
+        }
+        .weather-bg-anim .rain {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .raindrop {
+            position: absolute;
+            width: 4px;
+            height: 18px;
+            background: linear-gradient(to bottom, #b3e0ff 0%, #2196f3 100%);
+            border-radius: 2px;
+            opacity: 0.7;
+            animation: raindrop-fall 1s linear infinite;
+        }
+        @keyframes raindrop-fall {
+            0% { top: -30px; opacity: 0.7; }
+            80% { opacity: 0.7; }
+            100% { top: 100vh; opacity: 0; }
+        }
+        .weather-bg-anim .sun {
+            position: fixed;
+            left: 0;
+            width: 60vw;
+            height: 60vw;
+            min-width: 400px;
+            min-height: 400px;
+            max-width: 900px;
+            max-height: 900px;
+            background: radial-gradient(circle at 60vw 80vh, #fffde4 60%, #ffe066 80%, #f8b500 100%);
+            border-radius: 50%;
+            box-shadow: 0 0 180px 60px #fffde499, 0 0 120px 40px #ffe06699, 0 0 60px 20px #f8b50099;
+            animation: sun-rise-bg 2.5s cubic-bezier(0.4,0,0.2,1);
+            z-index: 0;
+            top: 0;
+        }
+        @keyframes sun-rise-bg {
+            0% { background-position: 60vw 120vh; opacity: 0; filter: blur(20px); }
+            60% { opacity: 1; filter: blur(0px); }
+            100% { background-position: 60vw 80vh; opacity: 1; filter: blur(0px); }
+        }
+        .weather-bg-anim .fog {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .fog-layer {
+            position: absolute;
+            left: 0;
+            width: 100vw;
+            height: 180px;
+            background: linear-gradient(to bottom, rgba(255,255,255,0.92) 70%, rgba(220,220,220,0.7) 100%);
+            filter: blur(28px);
+            opacity: 0.93;
+            animation: fog-move 18s linear infinite alternate;
+        }
+        .fog-layer2 {
+            top: 120px;
+            opacity: 0.7;
+            animation-delay: 4s;
+            filter: blur(36px);
+        }
+        .fog-layer3 {
+            top: 240px;
+            opacity: 0.6;
+            animation-delay: 8s;
+            filter: blur(44px);
+        }
+        .fog-layer4 {
+            top: 360px;
+            opacity: 0.5;
+            animation-delay: 12s;
+            filter: blur(60px);
+        }
+        .fog-layer5 {
+            top: 0;
+            opacity: 0.7;
+            height: 100vh;
+            background: linear-gradient(to bottom, rgba(255,255,255,0.85) 0%, rgba(220,220,220,0.7) 100%);
+            filter: blur(60px);
+            animation: fog-move-slow 32s linear infinite alternate;
+        }
+        /* Cloud shapes for foggy+cloudy effect */
+        .fog-cloud {
+            position: absolute;
+            background: #fff;
+            border-radius: 50%;
+            opacity: 0.85;
+            filter: blur(2.5px);
+            z-index: 1;
+            animation: fog-cloud-move 22s linear infinite alternate;
+        }
+        .fog-cloud.c1 {
+            width: 120px; height: 60px; left: 12vw; top: 80px; animation-delay: 0s;
+        }
+        .fog-cloud.c2 {
+            width: 90px; height: 44px; left: 38vw; top: 160px; opacity: 0.75; animation-delay: 4s;
+        }
+        .fog-cloud.c3 {
+            width: 140px; height: 70px; left: 65vw; top: 120px; opacity: 0.7; animation-delay: 8s;
+        }
+        .fog-cloud.c4 {
+            width: 100px; height: 50px; left: 80vw; top: 220px; opacity: 0.65; animation-delay: 12s;
+        }
+        /* Small cloud bots for foggy weather */
+        .fog-bot-cloud {
+            position: absolute;
+            background: #fff;
+            border-radius: 50%;
+            opacity: 0.55;
+            filter: blur(1.2px);
+            z-index: 2;
+            animation: fog-bot-cloud-move 16s linear infinite alternate;
+        }
+        .fog-bot-cloud.b1 {
+            width: 38px; height: 18px; left: 8vw; top: 82vh; animation-delay: 0s;
+        }
+        .fog-bot-cloud.b2 {
+            width: 28px; height: 14px; left: 22vw; top: 88vh; opacity: 0.38; animation-delay: 3s;
+        }
+        .fog-bot-cloud.b3 {
+            width: 44px; height: 20px; left: 55vw; top: 92vh; opacity: 0.32; animation-delay: 7s;
+        }
+        .fog-bot-cloud.b4 {
+            width: 32px; height: 13px; left: 78vw; top: 85vh; opacity: 0.28; animation-delay: 10s;
+        }
+        @keyframes fog-bot-cloud-move {
+            0% { transform: translateX(-10px); }
+            100% { transform: translateX(18px); }
+        }
+        @keyframes fog-cloud-move {
+            0% { transform: translateX(-20px); }
+            100% { transform: translateX(40px); }
+        }
+        @keyframes fog-move {
+            0% { left: -18vw; }
+            100% { left: 18vw; }
+        }
+        @keyframes fog-move-slow {
+            0% { left: -8vw; }
+            100% { left: 8vw; }
+        }
+    </style>
+</head>
+<body>
+    <div class="weather-bg-anim" id="weatherAnim"></div>
+    <!-- Direct link to advanced Three.js volumetric cloud demo, fullscreen overlay -->
+    <div id="cloud-demo-overlay" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:2000;background:rgba(0,0,0,0.85);align-items:center;justify-content:center;">
+      <iframe src="https://threejs.org/examples/?q=cloud#webgpu_volume_cloud" style="width:100vw;height:100vh;border:none;"></iframe>
+      <button onclick="document.getElementById('cloud-demo-overlay').style.display='none'" style="position:absolute;top:24px;right:32px;font-size:2rem;padding:8px 18px;border-radius:8px;border:none;background:#fff;color:#222;cursor:pointer;z-index:2100;box-shadow:0 2px 8px #0004;">×</button>
+    </div>
+    <div style="position:fixed;bottom:18px;right:18px;z-index:1000;font-size:1rem;background:rgba(255,255,255,0.85);border-radius:8px;padding:8px 16px;box-shadow:0 2px 8px #0002;">
+      <a href="#" onclick="document.getElementById('cloud-demo-overlay').style.display='flex';return false;" style="color:#1976d2;text-decoration:underline;font-weight:bold;">See advanced 3D clouds demo (Three.js)</a>
+    </div>
+    <div class="weather-container">
+        <div class="weather-icon">
+            <i class="wi wi-day-sunny"></i>
+        </div>
+        <div class="temp" id="temp">32°C</div>
+        <div class="desc" id="desc">Mostly Sunny</div>
+        <div class="city" id="city">Lucknow, India</div>
+        <div class="aqi" id="aqi">AQI: 110 (Moderate)</div>
+        <form class="search-box" onsubmit="showFakeWeather(event)">
+            <input class="search-input" type="text" id="cityInput" placeholder="Enter city..." required>
+            <button class="search-btn" type="submit">Search</button>
+        </form>
+    </div>
+    <script>
+        // This is a placeholder for demo purposes. Replace with real API calls for live data.
+        function setBodyClass(weather) {
+            document.body.classList.remove('sunny', 'hot', 'cloudy');
+            document.body.classList.remove('rainy', 'foggy');
+            const anim = document.getElementById('weatherAnim');
+            anim.innerHTML = '';
+            if (weather === 'sunny') {
+                document.body.classList.add('sunny');
+                anim.innerHTML = '<div class="sun"></div>';
+            } else if (weather === 'hot') {
+                document.body.classList.add('hot');
+            } else if (weather === 'cloudy') {
+                document.body.classList.add('cloudy');
+            } else if (weather === 'rainy') {
+                document.body.classList.add('rainy');
+                let rainHTML = '<div class="rain">';
+                for (let i = 0; i < 60; i++) {
+                    const left = Math.random() * window.innerWidth;
+                    const delay = Math.random();
+                    const height = 18 + Math.random() * 22;
+                    rainHTML += `<div class='raindrop' style='left:${left}px; animation-delay:${delay}s; height:${height}px;'></div>`;
+                }
+                rainHTML += '</div>';
+                anim.innerHTML = rainHTML;
+            } else if (weather === 'foggy') {
+                document.body.classList.add('foggy');
+                // Use Three.js for foggy clouds
+                anim.innerHTML = '<canvas id="three-fog-canvas" style="width:100vw;height:100vh;display:block;"></canvas>';
+                setTimeout(() => { renderThreeFog(); }, 50);
+            }
+
+        }
+
+        // Three.js foggy cloud effect
+        function renderThreeFog() {
+            const canvas = document.getElementById('three-fog-canvas');
+            if (!canvas) return;
+            // Remove previous renderer if any
+            if (window._threeRenderer) {
+                window._threeRenderer.dispose && window._threeRenderer.dispose();
+                window._threeRenderer.forceContextLoss && window._threeRenderer.forceContextLoss();
+                window._threeRenderer.domElement && window._threeRenderer.domElement.remove();
+                window._threeRenderer = null;
+            }
+            // Setup scene
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 1000);
+            camera.position.z = 200;
+            // Fog
+            scene.fog = new THREE.FogExp2(0xf8f8ff, 0.012);
+            // Renderer
+            const renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true });
+            renderer.setClearColor(0x000000, 0);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            window._threeRenderer = renderer;
+            // Clouds: use transparent spheres as a simple effect
+            const cloudMaterial = new THREE.MeshPhongMaterial({
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0.55,
+                shininess: 10
+            });
+            for (let i = 0; i < 12; i++) {
+                const geometry = new THREE.SphereGeometry(32 + Math.random()*32, 32, 32);
+                const mesh = new THREE.Mesh(geometry, cloudMaterial.clone());
+                mesh.position.x = (Math.random() - 0.5) * 600;
+                mesh.position.y = (Math.random() - 0.2) * 300;
+                mesh.position.z = (Math.random() - 0.5) * 200;
+                mesh.material.opacity = 0.35 + Math.random() * 0.4;
+                scene.add(mesh);
+            }
+            // Light
+            const light = new THREE.DirectionalLight(0xffffff, 1.2);
+            light.position.set(0, 1, 1).normalize();
+            scene.add(light);
+            // Animate
+            function animate() {
+                requestAnimationFrame(animate);
+                scene.children.forEach(obj => {
+                    if (obj instanceof THREE.Mesh) {
+                        obj.position.x += 0.05 * (Math.random() - 0.5);
+                        obj.position.y += 0.02 * (Math.random() - 0.5);
+                        obj.position.z += 0.01 * (Math.random() - 0.5);
+                    }
+                });
+                renderer.render(scene, camera);
+            }
+            animate();
+            // Responsive
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        }
+        function showFakeWeather(e) {
+            e.preventDefault();
+            const city = document.getElementById('cityInput').value.trim().toLowerCase();
+            const aqiDiv = document.getElementById('aqi');
+            if (city === 'lucknow') {
+                document.getElementById('city').textContent = 'Lucknow, India';
+                document.getElementById('temp').textContent = '32°C';
+                document.getElementById('desc').textContent = 'Mostly Sunny';
+                document.querySelector('.weather-icon i').className = 'wi wi-day-sunny';
+                setBodyClass('sunny');
+                aqiDiv.textContent = 'AQI: 110 (Moderate)';
+                aqiDiv.className = 'aqi moderate';
+            } else if (city === 'new delhi' || city === 'delhi') {
+                document.getElementById('city').textContent = 'New Delhi, India';
+                document.getElementById('temp').textContent = '34°C';
+                document.getElementById('desc').textContent = 'Hot & Sunny';
+                document.querySelector('.weather-icon i').className = 'wi wi-hot';
+                setBodyClass('sunny');
+                aqiDiv.textContent = 'AQI: 220 (Unhealthy)';
+                aqiDiv.className = 'aqi unhealthy';
+            } else if (city === 'mumbai') {
+                document.getElementById('city').textContent = 'Mumbai, India';
+                document.getElementById('temp').textContent = '29°C';
+                document.getElementById('desc').textContent = 'Humid & Cloudy';
+                document.querySelector('.weather-icon i').className = 'wi wi-day-cloudy';
+                setBodyClass('rainy');
+                aqiDiv.textContent = 'AQI: 70 (Good)';
+                aqiDiv.className = 'aqi good';
+            } else if (city === 'patna' || city === 'kanpur' || city === 'varanasi' || city === 'allahabad' || city === 'agra') {
+                document.getElementById('city').textContent = city.charAt(0).toUpperCase() + city.slice(1) + ', India';
+                document.getElementById('temp').textContent = '18°C';
+                document.getElementById('desc').textContent = 'Foggy';
+                document.querySelector('.weather-icon i').className = 'wi wi-fog';
+                setBodyClass('foggy');
+                aqiDiv.textContent = 'AQI: 160 (Moderate)';
+                aqiDiv.className = 'aqi moderate';
+            } else if (city === 'us' || city === 'usa' || city === 'united states') {
+                document.getElementById('city').textContent = 'United States';
+                document.getElementById('temp').textContent = '8°C';
+                document.getElementById('desc').textContent = 'Foggy';
+                document.querySelector('.weather-icon i').className = 'wi wi-fog';
+                setBodyClass('foggy');
+                aqiDiv.textContent = 'AQI: 120 (Moderate)';
+                aqiDiv.className = 'aqi moderate';
+            } else {
+                document.getElementById('city').textContent = city.charAt(0).toUpperCase() + city.slice(1) + ', India';
+                document.getElementById('temp').textContent = '30°C';
+                document.getElementById('desc').textContent = 'Partly Cloudy';
+                document.querySelector('.weather-icon i').className = 'wi wi-day-cloudy';
+                setBodyClass('cloudy');
+                aqiDiv.textContent = 'AQI: 90 (Good)';
+                aqiDiv.className = 'aqi good';
+            }
+        }
+        // Set initial background and AQI for Lucknow
+        window.onload = function() {
+            setBodyClass('sunny');
+            var aqiDiv = document.getElementById('aqi');
+            aqiDiv.textContent = 'AQI: 110 (Moderate)';
+            aqiDiv.className = 'aqi moderate';
+        };
+    </script>
+</body>
+</html>
